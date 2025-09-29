@@ -68,21 +68,19 @@
           <p id="dataFileName" class="text-xs text-zinc-500 mt-2 h-4"></p>
         </div>
       </div>
-      
+
       <div id="reportContainer" class="lg:col-span-2 mt-4 hidden">
           <div class="relative">
             <pre id="summaryReport" class="bg-zinc-900/80 text-zinc-200 border border-zinc-700 rounded-lg p-6 font-mono text-sm text-left leading-relaxed whitespace-pre-wrap w-full"></pre>
             <button id="downloadReportBtn" class="hidden absolute top-3 right-3 bg-zinc-600 hover:bg-zinc-700 text-white text-xs font-bold py-1 px-3 rounded-lg transition-colors">Download .txt</button>
           </div>
       </div>
-
     </main>
-    
+
     <input type="file" id="fileInput" class="hidden" accept=".txt,.csv" />
   </div>
 
   <script>
-    // YOUR JAVASCRIPT IS UNCHANGED
     document.addEventListener('DOMContentLoaded', () => {
       // Common elements
       const fileInput = document.getElementById('fileInput');
@@ -107,8 +105,7 @@
       function showReport(message, isError = false, downloadableContent = null) {
         summaryReport.textContent = message;
         summaryReport.classList.toggle('text-red-400', isError);
-        summaryReport.classList.toggle('text-zinc-200', !isError); // Changed from slate
-
+        summaryReport.classList.toggle('text-zinc-200', !isError);
         if (downloadableContent) {
             currentReportContent = downloadableContent;
             downloadReportBtn.classList.remove('hidden');
@@ -116,7 +113,6 @@
             currentReportContent = '';
             downloadReportBtn.classList.add('hidden');
         }
-
         reportContainer.classList.remove('hidden');
         reportContainer.classList.add('report-fade-in');
       }
@@ -132,7 +128,7 @@
         if (file && typeof activeTaskProcessor === 'function') {
           activeTaskProcessor(file);
         }
-        fileInput.value = '';
+        fileInput.value = ''; // Reset for same-file selection
       });
 
       downloadReportBtn.addEventListener('click', () => {
@@ -163,24 +159,28 @@
         try {
           const content = await file.text();
           const lines = content.split(/\r?\n/).filter(line => line.trim() !== '');
-          const keywords = lines.map(line => line.split(',')[0].trim());
 
-          if (keywords.length === 0) throw new Error("No keywords were found in the file.");
+          // FIX APPLIED HERE: .slice(1) skips the header row.
+          const keywords = lines.slice(1).map(line => line.split(',')[0].trim());
+
+          if (keywords.length === 0) throw new Error("No keywords were found in the file (after skipping the header).");
           
           const uniqueKeywords = [...new Set(keywords)].sort((a, b) =>
             a.localeCompare(b, undefined, { sensitivity: 'base' })
           );
-          const duplicatesRemoved = keywords.length - uniqueKeywords.length;
+          
+          // Adjusted calculation for accuracy
+          const totalKeywords = lines.length - 1;
+          const duplicatesRemoved = totalKeywords - uniqueKeywords.length;
 
           await navigator.clipboard.writeText(uniqueKeywords.join('\n'));
 
-          const report = `
-=======================================
+          const report = `=======================================
      Keyword Sorter Summary Report
 =======================================
 
 File Processed:      ${file.name}
-Total Keywords Found: ${keywords.length}
+Total Keywords Found: ${totalKeywords}
 Duplicates Removed:  ${duplicatesRemoved}
 Unique Keywords:     ${uniqueKeywords.length}
 
@@ -246,8 +246,7 @@ Unique Keywords:     ${uniqueKeywords.length}
           const csvContent = [finalHeader, ...finalDataRows].join('\n');
           downloadFile(csvContent, `Cleaned_${file.name.replace(/\.[^/.]+$/, "") + ".csv"}`, 'text/csv;charset=utf-8;');
 
-          const report = `
-=======================================
+          const report = `=======================================
     File Cleaning Summary Report
 =======================================
 
@@ -284,11 +283,12 @@ Final Clean Rows:    ${cleanRows.length}
         link.click();
         document.body.removeChild(link);
       }
-
+      
       function downloadTXT(content, fileName) {
           downloadFile(content, fileName, 'text/plain;charset=utf-8;');
       }
     });
   </script>
+
 </body>
 </html>
